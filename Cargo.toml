@@ -1,0 +1,7 @@
+[package]
+name = "todo-todo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+todo-bin = "0.1.0"
