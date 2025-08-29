@@ -120,9 +120,9 @@ impl Todo{
 
     pub fn raw(&self, arg: &[String]){
         if arg.len() > 1 {
-            eprintln!("Esse todo só precisa de 1 elemento, não {}", arg.len())
+            eprintln!("Esse todo só precisa de 1 argumento, não {}", arg.len())
         } else if arg.is_empty(){
-            eprintln!("Esse todo precisa de ao menos 1 elemento (done/todo)")
+            eprintln!("Esse todo precisa de ao menos 1 argumento (done/todo)")
         } else {
             let stdout = io::stdout();
             let mut writer = BufWriter::new(stdout);
@@ -189,8 +189,108 @@ impl Todo{
         }
     }
 
-    
+    fn remove_file(&self){
+        match fs::remove_file(&self.todo_path){
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("Erro ao apagar arquivo: {}", e)
+            } 
+        };
+    }
 
+    pub fn reset(&self){
+        if !self.no_backup{
+            match fs::copy(&self.todo_path, &self.todo_bak){
+                Ok(_) => self.remove_file(),
+                Err(_) => {
+                    eprintln!("Não foi possível fazer backup do arquivo :(")
+                }
+            }
+        } else {
+            self.remove_file();
+        }
+    }
 
-    
+    pub fn restore(&self){
+        fs::copy(&self.todo_bak, &self.todo_path).expect("Não foi possível recuperar o arquivo");
+    }
+
+    pub fn sort(&self){
+        
+    }
+
+    pub fn done(&self, args: &[String]){
+
+    }
+
+    pub fn edit(&self, args: &[String]){
+        if args.is_empty() || args.len() != 2{
+            eprintln!("A edição precisa de 2 argumentos");
+            process::exit(1);
+        }
+
+        let todofile = OpenOptions::new()
+                        .write(true)
+                        .truncate(true)
+                        .open(&self.todo_path)
+                        .expect("Não foi possível abrir o arquivo");
+
+        let mut buffer = BufWriter::new(todofile);
+
+        for (pos, line) in self.todo.iter().enumerate() {
+            let line = if args[0] == (pos+1).to_string(){
+                let mut entry = Entry::read_line(line);
+                entry.todo_entry = args[1].clone();
+                entry.file_line()
+            } else {
+                format!("{}\n", line);
+            };
+            buffer.write_all(line.as_bytes()).expect("Falha ao gravação");
+        }
+    }
+}
+
+const TODO_HELP: &str = "Uso: todo [COMANDO] [ARGUMENTOS]
+Todo é um organizador de tarefas super rápido e simples escrito em Rust
+
+Exemplo: todo list
+
+Comandos disponíveis:
+    - add [TAREFA/S]
+        adiciona nova(s) tarefa(s)
+        Exemplo: todo add \"comprar cenouras\"
+
+    - edit [ÍNDICE] [TAREFA/S EDITADA/S]  
+        edita uma tarefa existente  
+        Exemplo: todo edit 1 banana  
+
+    - list  
+        lista todas as tarefas  
+        Exemplo: todo list  
+
+    - done [ÍNDICE]  
+        marca tarefa(s) como concluída(s)  
+        Exemplo: todo done 2 3 (marca a segunda e a terceira tarefas como concluídas)  
+
+    - rm [ÍNDICE]  
+        remove uma tarefa  
+        Exemplo: todo rm 4  
+
+    - reset  
+        apaga todas as tarefas  
+
+    - restore  
+        restaura o backup mais recente após um reset  
+
+    - sort  
+        organiza tarefas concluídas e não concluídas  
+        Exemplo: todo sort  
+
+    - raw [todo/done]  
+        imprime apenas as tarefas concluídas/não concluídas em texto puro, útil para scripts  
+        Exemplo: todo raw done  
+";
+
+pub fn help(){
+    println!("{}", TODO_HELP);
 }
