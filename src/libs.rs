@@ -101,7 +101,7 @@ impl Todo{
         })
     }
 
-        pub fn list(&self){
+    pub fn list(&self){
         let stdout = io::stdout();
 
         let mut writer = BufWriter::new(stdout);
@@ -137,11 +137,60 @@ impl Todo{
                     data = entry.raw_line();
                 }
             writer.write_all(data.as_bytes()).expect("Falha ao gravação");
+                }
             }
         }
+    
+    pub fn add(&self, args: &[String]){
+        if args.is_empty(){
+            eprintln!("Precisa colocar alguma coisa");
+            process::exit(1);
+        }
+
+        let todofile = OpenOptions::new()
+                        .create(true)
+                        .append(true)
+                        .open(&self.todo_path)
+                        .expect("Não foi possível abrir o arquivo");
+
+        let mut buffer = BufWriter::new(todofile);
+        for arg in args {
+            if arg.trim().is_empty(){
+                continue;
+            }
+
+            let entry = Entry::new(arg.to_string(), false);
+            let line = entry.file_line();
+            buffer.write_all(line.as_bytes()).expect("Falha ao gravação");
+        }
     }
+
+    pub fn remove(&self, args: &[String]){
+        if args.is_empty(){
+            eprintln!("Precisa remover alguma coisa");
+            process::exit(1);
+        }
+
+        let todofile = OpenOptions::new()
+                        .write(true)
+                        .truncate(true)
+                        .open(&self.todo_path)
+                        .expect("Não foi possível abrir o arquivo");
+
+        let mut buffer = BufWriter::new(todofile);
+
+        for (pos, line) in self.todo.iter().enumerate() {
+            if args.contains(&(pos+1).to_string()){
+                continue;
+            }
+
+            let line = format!("{}\n", line);
+            buffer.write_all(line.as_bytes()).expect("Falha ao gravação");
+        }
+    }
+
+    
+
+
+    
 }
-
-
-}
-
