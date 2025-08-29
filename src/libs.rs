@@ -101,4 +101,47 @@ impl Todo{
         })
     }
 
+        pub fn list(&self){
+        let stdout = io::stdout();
+
+        let mut writer = BufWriter::new(stdout);
+        let mut data = String::new();
+
+        for(number, task) in self.todo.iter().enumerate(){
+            let entry = Entry::read_line(task);
+
+            let number = number + 1;
+
+            let line = entry.list_line(number);
+            data.push_str(&line);
+        }
+        writer.write_all(data.as_bytes()).expect("Falha ao gravação");
+    }
+
+    pub fn raw(&self, arg: &[String]){
+        if arg.len() > 1 {
+            eprintln!("Esse todo só precisa de 1 elemento, não {}", arg.len())
+        } else if arg.is_empty(){
+            eprintln!("Esse todo precisa de ao menos 1 elemento (done/todo)")
+        } else {
+            let stdout = io::stdout();
+            let mut writer = BufWriter::new(stdout);
+            let mut data = String::new();
+            let arg = &arg[0];
+
+            for task in self.todo.iter() {
+                let entry = Entry::read_line(task);
+                if entry.done && arg == "done"{
+                    data = entry.raw_line();
+                } else if !entry.done && arg == "todo"{
+                    data = entry.raw_line();
+                }
+            writer.write_all(data.as_bytes()).expect("Falha ao gravação");
+            }
+        }
+    }
 }
+
+
+}
+
