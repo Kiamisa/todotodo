@@ -46,3 +46,59 @@ impl Entry{
         format!("{}\n", self.todo_entry)
     }
 }
+
+pub struct Todo{
+    pub todo: Vec<String>,
+    pub todo_path: String,
+    pub todo_bak: String,
+    pub no_backup: bool,
+}
+
+impl Todo{
+    pub fn new() -> Result<Self, String>{
+        let todo_path: String = match env::var("TODO_PATH"){
+            Ok(t) => t,
+            Err(_) =>{
+                let home = env::var("HOME").unwrap();
+
+
+                let legacy_todo = format!("{}/TODO", &home);
+                match Path::new(&legacy_todo).exists(){
+                    true => legacy_todo,
+                    false => format!("{}/.todo", &home),
+                }
+                
+            }
+        };
+    
+        let todo_bak: String = match env::var("TODO_BAK_DIR"){
+            Ok(t) => t,
+            Err(_) => String::from("/tmp/todo.bak")
+        };
+
+        let no_backup = env::var("TODO_BACKUP").is_ok();
+        
+        let todofile = OpenOptions::new()
+                        .write(true)
+                        .read(true)
+                        .create(true)
+                        .open(&todo_path)
+                        .expect("Não foi possivel abrir o arquivo");
+
+        let mut buf_reader = BufReader::new(&todofile);
+
+        let mut contents = String::new();
+
+        buf_reader.read_to_string(&mut contents).unwrap();
+
+        let todo = contents.lines().map(str::to_string).colletc();
+
+        Ok(Self{
+            todo,
+            todo_path,
+            todo_bak,
+            no_backup,
+        })
+    }
+
+}
