@@ -345,7 +345,7 @@ Todo é um organizador de tarefas super rápido e simples escrito em Rust
 Exemplo: todo list
 
 Comandos disponíveis:
-    - add [TAREFA/S]
+    - mk [TAREFA/S]
     - edit [ÍNDICE] [TAREFA/S EDITADA/S]
     - list
     - done [ÍNDICE]
