@@ -3,6 +3,14 @@ name = "todo-todo"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "todo_todo"
+path = "src/libs.rs"
+
+[[bin]]
+name = "todo-todo"
+path = "src/main.rs"
+
 [dependencies]
 colored = "3.0.0"
 dirs = "6.0.0"
