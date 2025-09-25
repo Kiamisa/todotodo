@@ -67,7 +67,7 @@ impl App for TodoApp {
             ui.horizontal(|ui| {
                 ui.label("Nova tarefa:");
                 ui.text_edit_singleline(&mut self.new_task);
-                if ui.button("➕ Adicionar").clicked() && !self.new_task.is_empty() {
+                if ui.button("Adicionar").clicked() && !self.new_task.is_empty() {
                     add_clicked = true;
                     task_to_add = self.new_task.clone();
                 }
@@ -90,12 +90,11 @@ impl App for TodoApp {
             let mut edit_data = (String::new(), String::new());
 
             ui.horizontal(|ui|{
-                ui.label("Editar Tarefa: ");
-                ui.label("Índice: ");
+                ui.label("Editar Tarefa - Índice:");
                 ui.text_edit_singleline(&mut self.edit_index);
                 ui.label("Nova tarefa:");
                 ui.text_edit_singleline(&mut self.edit_task);
-                if ui.button("✏️ Editar").clicked() && !self.edit_index.is_empty() && !self.edit_task.is_empty() {
+                if ui.button("Editar").clicked() && !self.edit_index.is_empty() && !self.edit_task.is_empty() {
                     edit_clicked = true;
                     edit_data = (self.edit_index.clone(), self.edit_task.clone());
                 }
@@ -123,12 +122,12 @@ impl App for TodoApp {
             let mut indices_data = String::new();
 
             ui.horizontal(|ui| {
-                if ui.button("✅ Marcar/Desmarcar").clicked() && !self.select_indices.is_empty() {
+                if ui.button("Marcar/Desmarcar").clicked() && !self.select_indices.is_empty() {
                     done_clicked = true;
                     indices_data = self.select_indices.clone();
                 }
 
-                if ui.button("🗑️ Remover").clicked() && !self.select_indices.is_empty() {
+                if ui.button("Remover").clicked() && !self.select_indices.is_empty() {
                     remove_clicked = true;
                     indices_data = self.select_indices.clone();
                 }
@@ -161,19 +160,19 @@ impl App for TodoApp {
             let mut restore_clicked = false;
 
             ui.horizontal(|ui| {
-                if ui.button("🔄 Ordenar").clicked() {
+                if ui.button("Ordenar").clicked() {
                     sort_clicked = true;
                 }
 
-                if ui.button("🔄 Atualizar Lista").clicked() {
+                if ui.button("Atualizar Lista").clicked() {
                     refresh_clicked = true;
                 }
 
-                if ui.button("🚨 Reset").clicked() {
+                if ui.button("Reset").clicked() {
                     reset_clicked = true;
                 }
 
-                if ui.button("📋 Restaurar").clicked() {
+                if ui.button("Restaurar").clicked() {
                     restore_clicked = true;
                 }
             });
@@ -210,11 +209,11 @@ impl App for TodoApp {
             ui.separator();
 
             ui.horizontal(|ui| {
-                if ui.button("📋 Ver TODOs Pendentes").clicked() {
+                if ui.button("Ver TODOs Pendentes").clicked() {
                     self.show_raw_todo = !self.show_raw_todo;
                     self.show_raw_done = false;
                 }
-                if ui.button("✅ Ver TODOs Completos").clicked() {
+                if ui.button("Ver TODOs Completos").clicked() {
                     self.show_raw_done = !self.show_raw_done;
                     self.show_raw_todo = false;
                 }
@@ -238,7 +237,7 @@ impl App for TodoApp {
             }
 
             if self.show_raw_done {
-                ui.label("✅ Tarefas Completas (Raw):");
+                ui.label("Tarefas Completas:");
                 if let Ok(todo) = self.todo.lock() {
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         for line in &todo.todo {
@@ -252,7 +251,7 @@ impl App for TodoApp {
                 ui.separator();
             }
 
-            ui.label("📝 Lista de Tarefas:");
+            ui.label("Lista de Tarefas:");
             
             egui::ScrollArea::vertical().show(ui, |ui| {
                 if let Ok(todo) = self.todo.lock() {
@@ -260,7 +259,7 @@ impl App for TodoApp {
                         let entry = Entry::read_line(line);
                         let status_icon = if entry.done { "✅" } else { "⭕" };
                         let task_text = if entry.done {
-                            format!("~~{}~~", entry.todo_entry)
+                            format!("{}", entry.todo_entry)
                         } else {
                             entry.todo_entry.clone()
                         };
