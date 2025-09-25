@@ -1,5 +1,7 @@
 use eframe::egui;
 use eframe::App;
+use eframe::NativeOptions;
+use egui::{Vec2, ViewportBuilder};
 use crate::libs::*;
 use std::sync::{Arc, Mutex};
 
@@ -8,10 +10,12 @@ pub struct TodoApp {
     new_task: String,
     edit_task: String,
     edit_index: String,
-    select_indices: String,
+    select_index: String,
     status_messages: String,
     show_raw_todo: bool,
     show_raw_done: bool,
+    //error_message: String,
+    dark_mode: bool,
 }
 
 impl TodoApp {
@@ -21,10 +25,12 @@ impl TodoApp {
             new_task: String::new(),
             edit_task: String::new(),
             edit_index: String::new(),
-            select_indices: String::new(),
+            select_index: String::new(),
             status_messages: String::new(),
             show_raw_done: false,
             show_raw_todo: false,
+            //error_message: String::new(),
+            dark_mode: true,
         }
     }
 
@@ -43,7 +49,26 @@ impl TodoApp {
 
 pub fn run(todo: Todo) {
     let app = TodoApp::new(todo);
-    let native_options = eframe::NativeOptions::default();
+    let native_options = NativeOptions {
+        viewport: ViewportBuilder::default()
+            //.with_always_on_top(false)
+            .with_maximized(false)
+            .with_decorations(true)
+            .with_drag_and_drop(true)
+            //.with_icon(None)
+            //.with_position(None)
+            .with_inner_size(Vec2::new(800.0, 600.0))
+            //.with_min_inner_size(None)
+            //.with_max_inner_size(None)
+            .with_resizable(true)
+            .with_transparent(false),
+        vsync: true,
+        multisampling: 0,
+        depth_buffer: 0,
+        stencil_buffer: 0,
+        ..Default::default()
+    };
+
     eframe::run_native(
         "TodoTodo GUI",
         native_options,
@@ -57,6 +82,18 @@ impl App for TodoApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("TodoTodo GUI");
 
+            ui.horizontal(|ui| {
+                ui.label("Tema:");
+                ui.radio_value(&mut self.dark_mode, true, "Escuro");
+                ui.radio_value(&mut self.dark_mode, false, "Claro");
+            });
+
+            if self.dark_mode{
+                ctx.set_visuals(egui::Visuals::dark());
+            } else {
+                ctx.set_visuals(egui::Visuals::light());
+            }
+
             if !self.status_messages.is_empty() {
                 ui.colored_label(egui::Color32::from_rgb(0, 150, 0), &self.status_messages);
                 ui.separator();
@@ -66,7 +103,8 @@ impl App for TodoApp {
             
             ui.horizontal(|ui| {
                 ui.label("Nova tarefa:");
-                ui.text_edit_singleline(&mut self.new_task);
+                ui.add(egui::TextEdit::singleline(&mut self.new_task).desired_width(150.0));
+                //ui.text_edit_singleline(&mut self.new_task)
                 if ui.button("Adicionar").clicked() && !self.new_task.is_empty() {
                     add_clicked = true;
                     task_to_add = self.new_task.clone();
@@ -91,9 +129,11 @@ impl App for TodoApp {
 
             ui.horizontal(|ui|{
                 ui.label("Editar Tarefa - Índice:");
-                ui.text_edit_singleline(&mut self.edit_index);
+                ui.add(egui::TextEdit::singleline(&mut self.edit_index).desired_width(150.0));
+                //ui.text_edit_singleline(&mut self.edit_index);
                 ui.label("Nova tarefa:");
-                ui.text_edit_singleline(&mut self.edit_task);
+                ui.add(egui::TextEdit::singleline(&mut self.edit_task).desired_width(150.0));
+                //ui.text_edit_singleline(&mut self.edit_task);
                 if ui.button("Editar").clicked() && !self.edit_index.is_empty() && !self.edit_task.is_empty() {
                     edit_clicked = true;
                     edit_data = (self.edit_index.clone(), self.edit_task.clone());
@@ -114,7 +154,8 @@ impl App for TodoApp {
 
             ui.horizontal(|ui| {
                 ui.label("Índices (separados por espaço):");
-                ui.text_edit_singleline(&mut self.select_indices);
+                ui.add(egui::TextEdit::singleline(&mut self.select_index).desired_width(150.0));
+                //ui.text_edit_singleline(&mut self.select_index);
             });
 
             let mut done_clicked = false;
@@ -122,14 +163,14 @@ impl App for TodoApp {
             let mut indices_data = String::new();
 
             ui.horizontal(|ui| {
-                if ui.button("Marcar/Desmarcar").clicked() && !self.select_indices.is_empty() {
+                if ui.button("Marcar/Desmarcar").clicked() && !self.select_index.is_empty() {
                     done_clicked = true;
-                    indices_data = self.select_indices.clone();
+                    indices_data = self.select_index.clone();
                 }
 
-                if ui.button("Remover").clicked() && !self.select_indices.is_empty() {
+                if ui.button("Remover").clicked() && !self.select_index.is_empty() {
                     remove_clicked = true;
-                    indices_data = self.select_indices.clone();
+                    indices_data = self.select_index.clone();
                 }
             });
 
@@ -148,7 +189,7 @@ impl App for TodoApp {
                     todo.remove(&indices);
                 }
                     self.set_status("Tarefas removidas!".to_string());
-                    self.select_indices.clear();
+                    self.select_index.clear();
                     self.refresh_todo();
             }
 
@@ -222,9 +263,11 @@ impl App for TodoApp {
             ui.separator();
 
             if self.show_raw_todo {
-                ui.label("📋 Tarefas Pendentes (Raw):");
+                ui.label("📋 Tarefas Pendentes:");
                 if let Ok(todo) = self.todo.lock() {
-                    egui::ScrollArea::vertical().show(ui, |ui| {
+                    egui::ScrollArea::vertical()
+                        .id_salt("pending_scroll")
+                        .show(ui, |ui| {
                         for line in &todo.todo {
                             let entry = Entry::read_line(line);
                             if !entry.done {
@@ -239,7 +282,9 @@ impl App for TodoApp {
             if self.show_raw_done {
                 ui.label("Tarefas Completas:");
                 if let Ok(todo) = self.todo.lock() {
-                    egui::ScrollArea::vertical().show(ui, |ui| {
+                    egui::ScrollArea::vertical()
+                        .id_salt("done_scroll")
+                        .show(ui, |ui| {
                         for line in &todo.todo {
                             let entry = Entry::read_line(line);
                             if entry.done {
@@ -253,30 +298,32 @@ impl App for TodoApp {
 
             ui.label("Lista de Tarefas:");
             
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                if let Ok(todo) = self.todo.lock() {
-                    for (index, line) in todo.todo.iter().enumerate() {
-                        let entry = Entry::read_line(line);
-                        let status_icon = if entry.done { "✅" } else { "⭕" };
-                        let task_text = if entry.done {
-                            format!("{}", entry.todo_entry)
-                        } else {
-                            entry.todo_entry.clone()
-                        };
-                        
-                        ui.horizontal(|ui| {
-                            ui.label(format!("{}", index + 1));
-                            ui.label(status_icon);
-                            
-                            // Make completed tasks appear dimmed
-                            if entry.done {
-                                ui.colored_label(egui::Color32::GRAY, task_text);
+            egui::ScrollArea::vertical()
+                .id_salt("main_scroll")
+                .show(ui, |ui| {
+                    if let Ok(todo) = self.todo.lock() {
+                        for (index, line) in todo.todo.iter().enumerate() {
+                            let entry = Entry::read_line(line);
+                            let status_icon = if entry.done { "✅" } else { "⭕" };
+                            let task_text = if entry.done {
+                                format!("{}", entry.todo_entry)
                             } else {
-                                ui.label(task_text);
-                            }
-                        });
+                                entry.todo_entry.clone()
+                            };
+                            
+                            ui.horizontal(|ui| {
+                                ui.label(format!("{}", index + 1));
+                                ui.label(status_icon);
+                                
+                                // Make completed tasks appear dimmed
+                                if entry.done {
+                                    ui.colored_label(egui::Color32::GRAY, task_text);
+                                } else {
+                                    ui.label(task_text);
+                                }
+                            });
+                        }
                     }
-                }
             });
         });
     }
