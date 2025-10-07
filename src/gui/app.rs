@@ -80,175 +80,138 @@ pub fn run(todo: Todo) {
 impl App for TodoApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
+            // --- Seção do Tema (sem alterações) ---
             ui.heading("TodoTodo GUI");
-
             ui.horizontal(|ui| {
                 ui.label("Tema:");
                 ui.radio_value(&mut self.dark_mode, true, "Escuro");
                 ui.radio_value(&mut self.dark_mode, false, "Claro");
             });
 
-            if self.dark_mode{
+            if self.dark_mode {
                 ctx.set_visuals(egui::Visuals::dark());
             } else {
                 ctx.set_visuals(egui::Visuals::light());
             }
 
+            // --- Mensagem de Status (sem alterações) ---
             if !self.status_messages.is_empty() {
-                ui.colored_label(egui::Color32::from_rgb(0, 150, 0), &self.status_messages);
-                ui.separator();
+                let message = self.status_messages.clone(); // Clona para usar no label
+                ui.colored_label(egui::Color32::from_rgb(0, 150, 0), message);
             }
-            let mut add_clicked = false;
-            let mut task_to_add = String::new();
-            
-            ui.horizontal(|ui| {
-                ui.label("Nova tarefa:");
-                ui.add(egui::TextEdit::singleline(&mut self.new_task).desired_width(150.0));
-                //ui.text_edit_singleline(&mut self.new_task)
-                if ui.button("Adicionar").clicked() && !self.new_task.is_empty() {
-                    add_clicked = true;
-                    task_to_add = self.new_task.clone();
-                }
-            });
+            ui.separator();
 
-            if add_clicked {
-                if let Ok(todo) = self.todo.lock() {
-                    todo.add(&[task_to_add.clone()]);
-                }
+            // --- NOVO: Início do Formulário com Grid ---
+            egui::Grid::new("todo_form")
+                .num_columns(3) // Coluna 1: Label, Coluna 2: Input, Coluna 3: Botão(ões)
+                .spacing([10.0, 8.0]) // Espaçamento [horizontal, vertical]
+                .show(ui, |ui| {
+                    // --- Linha 1: Adicionar Tarefa ---
+                    ui.label("Nova tarefa:");
+                    ui.text_edit_singleline(&mut self.new_task);
+                    if ui.button("Adicionar").clicked() {
+                        if !self.new_task.is_empty() {
+                            if let Ok(todo) = self.todo.lock() {
+                                todo.add(&[self.new_task.clone()]);
+                            }
+                            self.set_status(format!("Tarefa '{}' adicionada!", self.new_task));
+                            self.new_task.clear();
+                            self.refresh_todo();
+                        }
+                    }
+                    ui.end_row();
 
-                self.set_status(format!("Tarefa '{}' adicionada!", task_to_add));
-                self.new_task.clear();
-                self.refresh_todo();
-            }
+                    // --- Linha 2: Editar Tarefa ---
+                    ui.label("Editar Tarefa - Índice:");
+                    // Célula com múltiplos widgets
+                    ui.horizontal(|ui| {
+                        // O campo de índice pode ser menor, então vamos dar um tamanho fixo
+                        ui.add(egui::TextEdit::singleline(&mut self.edit_index).desired_width(50.0));
+                        ui.label("Nova tarefa:");
+                        // O campo da nova tarefa deve expandir
+                        ui.add(egui::TextEdit::singleline(&mut self.edit_task).desired_width(100.0));
+                    });
+                    if ui.button("Editar").clicked() {
+                        if !self.edit_index.is_empty() && !self.edit_task.is_empty() {
+                            if let Ok(todo) = self.todo.lock() {
+                                todo.edit(&[self.edit_index.clone(), self.edit_task.clone()]);
+                            }
+                            self.set_status(format!("Tarefa {} editada para '{}'!", self.edit_index, self.edit_task));
+                            self.edit_index.clear();
+                            self.edit_task.clear();
+                            self.refresh_todo();
+                        }
+                    }
+                    ui.end_row();
+
+                    // --- Linha 3: Marcar/Remover Tarefas ---
+                    ui.label("Índices (separados por espaço):");
+                    ui.text_edit_singleline(&mut self.select_index);
+                    // Célula com múltiplos botões
+                    ui.horizontal(|ui| {
+                        if ui.button("Marcar/Desmarcar").clicked() {
+                            if !self.select_index.is_empty() {
+                                let indices: Vec<String> = self.select_index.split_whitespace().map(String::from).collect();
+                                if let Ok(todo) = self.todo.lock() {
+                                    todo.done(&indices);
+                                }
+                                self.set_status("Status das tarefas alterado!".to_string());
+                                self.select_index.clear(); // Limpa após o uso
+                                self.refresh_todo();
+                            }
+                        }
+                        if ui.button("Remover").clicked() {
+                            if !self.select_index.is_empty() {
+                                let indices: Vec<String> = self.select_index.split_whitespace().map(String::from).collect();
+                                if let Ok(todo) = self.todo.lock() {
+                                    todo.remove(&indices);
+                                }
+                                self.set_status("Tarefas removidas!".to_string());
+                                self.select_index.clear(); // Limpa após o uso
+                                self.refresh_todo();
+                            }
+                        }
+                    });
+                    ui.end_row();
+                }); // --- Fim do Grid ---
 
             ui.separator();
 
-            // Edit task section
-            let mut edit_clicked = false;
-            let mut edit_data = (String::new(), String::new());
-
-            ui.horizontal(|ui|{
-                ui.label("Editar Tarefa - Índice:");
-                ui.add(egui::TextEdit::singleline(&mut self.edit_index).desired_width(150.0));
-                //ui.text_edit_singleline(&mut self.edit_index);
-                ui.label("Nova tarefa:");
-                ui.add(egui::TextEdit::singleline(&mut self.edit_task).desired_width(150.0));
-                //ui.text_edit_singleline(&mut self.edit_task);
-                if ui.button("Editar").clicked() && !self.edit_index.is_empty() && !self.edit_task.is_empty() {
-                    edit_clicked = true;
-                    edit_data = (self.edit_index.clone(), self.edit_task.clone());
-                }
-            });
-
-            if edit_clicked {
-                if let Ok(todo) = self.todo.lock() {
-                    todo.edit(&[edit_data.0.clone(), edit_data.1.clone()]);
-                }
-                    self.set_status(format!("Tarefa {} editada para '{}'!", edit_data.0, edit_data.1));
-                    self.edit_index.clear();
-                    self.edit_task.clear();
-                    self.refresh_todo();
-            }
-
-            ui.separator();
-
-            ui.horizontal(|ui| {
-                ui.label("Índices (separados por espaço):");
-                ui.add(egui::TextEdit::singleline(&mut self.select_index).desired_width(150.0));
-                //ui.text_edit_singleline(&mut self.select_index);
-            });
-
-            let mut done_clicked = false;
-            let mut remove_clicked = false;
-            let mut indices_data = String::new();
-
-            ui.horizontal(|ui| {
-                if ui.button("Marcar/Desmarcar").clicked() && !self.select_index.is_empty() {
-                    done_clicked = true;
-                    indices_data = self.select_index.clone();
-                }
-
-                if ui.button("Remover").clicked() && !self.select_index.is_empty() {
-                    remove_clicked = true;
-                    indices_data = self.select_index.clone();
-                }
-            });
-
-            if done_clicked {
-                let indices: Vec<String> = indices_data.split_whitespace().map(|s| s.to_string()).collect();
-                if let Ok(todo) = self.todo.lock() {
-                    todo.done(&indices);
-                }
-                    self.set_status("Status das tarefas alterado!".to_string());
-                    self.refresh_todo();
-            }
-
-            if remove_clicked {
-                let indices: Vec<String> = indices_data.split_whitespace().map(|s| s.to_string()).collect();
-                if let Ok(todo) = self.todo.lock() {
-                    todo.remove(&indices);
-                }
-                    self.set_status("Tarefas removidas!".to_string());
-                    self.select_index.clear();
-                    self.refresh_todo();
-            }
-
-            ui.separator();
-
-            let mut sort_clicked = false;
-            let mut refresh_clicked = false;
-            let mut reset_clicked = false;
-            let mut restore_clicked = false;
-
+            // --- Botões de Ação (agora usam a lógica imediata também) ---
             ui.horizontal(|ui| {
                 if ui.button("Ordenar").clicked() {
-                    sort_clicked = true;
+                    if let Ok(todo) = self.todo.lock() {
+                        todo.sort();
+                    }
+                    self.set_status("Lista ordenada (pendentes primeiro)!".to_string());
+                    self.refresh_todo();
                 }
 
                 if ui.button("Atualizar Lista").clicked() {
-                    refresh_clicked = true;
+                    self.refresh_todo();
+                    self.set_status("Lista atualizada!".to_string());
                 }
 
                 if ui.button("Reset").clicked() {
-                    reset_clicked = true;
+                    if let Ok(todo) = self.todo.lock() {
+                        todo.reset();
+                    }
+                    self.set_status("Lista resetada (backup criado)!".to_string());
+                    self.refresh_todo();
                 }
 
                 if ui.button("Restaurar").clicked() {
-                    restore_clicked = true;
+                    if let Ok(todo) = self.todo.lock() {
+                        todo.restore();
+                    }
+                    self.set_status("Lista restaurada do backup!".to_string());
+                    self.refresh_todo();
                 }
             });
 
-            if sort_clicked {
-                if let Ok(todo) = self.todo.lock() {
-                    todo.sort();
-                }
-                    self.set_status("Lista ordenada (pendentes primeiro)!".to_string());
-                    self.refresh_todo();
-            }
-
-            if refresh_clicked {
-                self.refresh_todo();
-                self.set_status("Lista atualizada!".to_string());
-            }
-
-            if reset_clicked {
-                if let Ok(todo) = self.todo.lock() {
-                    todo.reset();
-                }
-                    self.set_status("Lista resetada (backup criado)!".to_string());
-                    self.refresh_todo();
-            }
-
-            if restore_clicked {
-                if let Ok(todo) = self.todo.lock() {
-                    todo.restore();
-                }
-                    self.set_status("Lista restaurada do backup!".to_string());
-                    self.refresh_todo();
-            }
-
             ui.separator();
 
+            // --- Botões de Visualização (sem grandes alterações) ---
             ui.horizontal(|ui| {
                 if ui.button("Ver TODOs Pendentes").clicked() {
                     self.show_raw_todo = !self.show_raw_todo;
@@ -261,7 +224,9 @@ impl App for TodoApp {
             });
 
             ui.separator();
-
+            
+            // --- O resto do código para exibir as listas permanece o mesmo ---
+            // ... (if self.show_raw_todo, if self.show_raw_done, e a lista principal)
             if self.show_raw_todo {
                 ui.label("📋 Tarefas Pendentes:");
                 if let Ok(todo) = self.todo.lock() {
@@ -280,7 +245,7 @@ impl App for TodoApp {
             }
 
             if self.show_raw_done {
-                ui.label("Tarefas Completas:");
+                ui.label("✅ Tarefas Completas:");
                 if let Ok(todo) = self.todo.lock() {
                     egui::ScrollArea::vertical()
                         .id_salt("done_scroll")
@@ -305,17 +270,12 @@ impl App for TodoApp {
                         for (index, line) in todo.todo.iter().enumerate() {
                             let entry = Entry::read_line(line);
                             let status_icon = if entry.done { "✅" } else { "⭕" };
-                            let task_text = if entry.done {
-                                format!("{}", entry.todo_entry)
-                            } else {
-                                entry.todo_entry.clone()
-                            };
+                            let task_text = entry.todo_entry.clone();
                             
                             ui.horizontal(|ui| {
                                 ui.label(format!("{}", index + 1));
                                 ui.label(status_icon);
                                 
-                                // Make completed tasks appear dimmed
                                 if entry.done {
                                     ui.colored_label(egui::Color32::GRAY, task_text);
                                 } else {
@@ -324,7 +284,7 @@ impl App for TodoApp {
                             });
                         }
                     }
-            });
+                });
         });
     }
 }
